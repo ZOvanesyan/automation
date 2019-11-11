@@ -18,8 +18,9 @@ if __name__ == "__main__":
     with open ('input_data/orb_companies2.csv', 'wb') as outfile:
         outfile.writelines(data_company[2:])
 
-    branches = pd.read_csv('input_data/orb_branches2.csv')
-    companies = pd.read_csv('input_data/orb_companies2.csv')
+#    branches = pd.read_csv('input_data/orb_branches2.csv')
+#    companies = pd.read_csv('input_data/orb_companies2.csv')
+
 
     conn = psycopg2.connect(
         host='localhost', 
@@ -32,8 +33,33 @@ if __name__ == "__main__":
 
     engine = create_engine('postgresql://postgres@localhost:54320/postgres')
 
-    branches.to_sql('export_branches', engine)
-    companies.to_sql('export_companies', engine)
+#    branches.to_sql('export_branches', engine)
+#    companies.to_sql('export_companies', engine)
+
+
+    cur.execute("CREATE TYPE naics_type AS (naics_code TEXT, naics_description TEXT);")
+    conn.commit()
+
+    cur.execute("CREATE TYPE category_type AS (name TEXT, weight REAL);")
+    conn.commit()
+
+    cur.execute("CREATE TABLE companies (company_id bigint PRIMARY KEY, parent_company_id bigint, name character varying(255), other_names character varying(255)[], website character varying(1000), city character varying(255), state character varying(255), zip character varying(255), country character varying(255), naics_code character varying(255),  naics_description character varying(255), other_naics_codes naics_type[],  categories category_type[]);") 
+    conn.commit()
+
+    cur.execute("CREATE TABLE branches (company_id bigint, branch_id bigint PRIMARY KEY, name character varying(255), other_names character varying(255)[], city character varying(255), state character varying(255), zip character varying(255), country character varying(255));")
+    conn.commit()
+
+    cur.execute("CREATE TABLE export_companies AS SELECT * FROM companies;")
+    conn.commit()
+
+    cur.execute("CREATE TABLE export_branches AS SELECT * FROM branches;")
+    conn.commit()
+
+    cur.execute("COPY export_companies FROM '/var/lib/orb/input_data/orb_companies2.csv' DELIMITER ';' CSV HEADER;")
+    conn.commit()
+
+    cur.execute("COPY export_branches FROM '/var/lib/orb/input_data/orb_branches2.csv' DELIMITER ';' CSV HEADER;")
+    conn.commit()
 
     cur.execute("alter table export_companies drop column other_names, drop column other_naics_codes, drop column categories;")
     conn.commit()
